@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clash of Ilium: Troyanos vs Aqueos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@500;700;900&display=swap');
+
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #05020a;
+            font-family: 'Cinzel', serif;
+            color: #f3e5ab;
+        }
+
+        .font-cinzel-dec {
+            font-family: 'Cinzel Decorative', cursive;
+        }
+
+        /* Custom Greek Border Motif */
+        .greek-border {
+            border: 3px solid #d4af37;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4), inset 0 0 15px rgba(212, 175, 55, 0.2);
+            background: rgba(15, 10, 25, 0.85);
+        }
+
+        .greek-btn {
+            background: linear-gradient(135deg, #8a1c14 0%, #4a0d08 100%);
+            border: 2px solid #d4af37;
+            color: #f3e5ab;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            transition: all 0.2s ease;
+        }
+
+        .greek-btn:hover {
+            background: linear-gradient(135deg, #b8281d 0%, #6e130c 100%);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .greek-btn:active {
+            transform: translateY(1px);
+        }
+
+        /* Health & Gauge bars */
+        .bar-container {
+            background: #110b18;
+            border: 2px solid #8c6d23;
+            box-shadow: 0 0 10px #000;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .hp-bar-fill {
+            background: linear-gradient(90deg, #d32f2f, #f44336, #ff7961);
+            transition: width 0.15s ease-out;
+            box-shadow: 0 0 10px rgba(244, 67, 54, 0.8);
+        }
+
+        .icor-bar-fill {
+            background: linear-gradient(90deg, #008ba3, #00bcd4, #b2ebf2);
+            transition: width 0.2s ease-out;
+            box-shadow: 0 0 12px rgba(0, 188, 212, 0.9);
+        }
+
+        /* Screen Shake Animation Class */
+        .shake {
+            animation: screenShake 0.25s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes screenShake {
+            10%, 90% { transform: translate3d(-2px, 1px, 0); }
+            20%, 80% { transform: translate3d(4px, -2px, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 3px, 0); }
+            40%, 60% { transform: translate3d(6px, -3px, 0); }
+        }
+
+        /* Pulse FX for divine meter full */
+        @keyframes icorPulse {
+            0% { box-shadow: 0 0 5px #00bcd4; }
+            50% { box-shadow: 0 0 20px #00bcd4, 0 0 30px #ffffff; }
+            100% { box-shadow: 0 0 5px #00bcd4; }
+        }
+
+        .icor-ready {
+            animation: icorPulse 1s infinite;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen relative flex flex-col justify-between items-center select-none overflow-hidden">
+
+    <!-- Canvas for 3D Scene Rendering -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full z-0"></div>
+
+    <!-- MAIN MENU OVERLAY -->
+    <div id="main-menu" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <div class="text-center max-w-2xl w-full greek-border p-8 rounded-lg relative">
+            <h1 class="text-4xl md:text-6xl font-cinzel-dec text-amber-400 tracking-wider mb-2 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]">
+                CLASH OF ILIUM
+            </h1>
+            <p class="text-amber-200/80 text-sm md:text-base tracking-widest mb-8 uppercase border-b border-amber-500/30 pb-4">
+                La Guerra de Troya • Troyanos vs Aqueos
+            </p>
+
+            <div class="space-y-4 max-w-md mx-auto">
+                <button id="btn-vs-cpu" class="greek-btn w-full py-3 text-lg font-bold rounded tracking-widest flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-helmet-safety text-amber-400"></i> JUGADOR VS IA (CPU)
+                </button>
+                <button id="btn-vs-player" class="greek-btn w-full py-3 text-lg font-bold rounded tracking-widest flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-swords text-amber-400"></i> 1 VS 1 LOCAL
+                </button>
+            </div>
+
+            <!-- Difficulty Selector -->
+            <div class="mt-6 pt-4 border-t border-amber-500/20 flex justify-center items-center gap-4 text-xs md:text-sm">
+                <span class="text-amber-300 font-bold">DIFICULTAD IA:</span>
+                <button class="diff-btn px-3 py-1 rounded border border-amber-500/40 bg-amber-900/40 text-amber-200 active-diff" data-diff="easy">FÁCIL</button>
+                <button class="diff-btn px-3 py-1 rounded border border-amber-500/40 bg-amber-900/10 text-amber-400" data-diff="normal">NORMAL</button>
+                <button class="diff-btn px-3 py-1 rounded border border-amber-500/40 bg-amber-900/10 text-amber-400" data-diff="legend">LEYENDA</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHARACTER SELECT SCREEN -->
+    <div id="char-select" class="absolute inset-0 z-40 hidden flex-col items-center justify-between bg-black/90 p-6">
+        <h2 class="text-3xl md:text-4xl font-cinzel-dec text-amber-400 tracking-wider text-center mt-4">
+            SELECCIONA TU HÉROE
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full my-auto">
+            <!-- HECTOR CARD -->
+            <div id="card-hector" class="greek-border p-6 rounded-lg cursor-pointer hover:border-amber-300 transition-all transform hover:-translate-y-2 flex flex-col items-center text-center group">
+                <div class="w-24 h-24 rounded-full border-2 border-amber-400 bg-amber-950/60 flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-shield-halved text-4xl text-amber-400"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-amber-300 mb-1">HÉCTOR DE TROYA</h3>
+                <p class="text-xs text-amber-200/70 mb-3 italic">"Defensor Implacable de Ilión"</p>
+                <div class="text-xs text-left space-y-1 w-full bg-black/40 p-3 rounded border border-amber-500/20">
+                    <p><span class="text-amber-400 font-bold">Arma:</span> Lanza Troyana y Escudo Bronce</p>
+                    <p><span class="text-amber-400 font-bold">Estilo:</span> Gran Alcance, Defensa Sólida</p>
+                    <p><span class="text-amber-400 font-bold">Poder Divino:</span> Tormenta de Apolo (Embestida con Escudo)</p>
+                </div>
+            </div>
+
+            <!-- ACHILLES CARD -->
+            <div id="card-achilles" class="greek-border p-6 rounded-lg cursor-pointer hover:border-amber-300 transition-all transform hover:-translate-y-2 flex flex-col items-center text-center group">
+                <div class="w-24 h-24 rounded-full border-2 border-red-500 bg-red-950/60 flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-vanguard text-4xl text-red-400"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-red-400 mb-1">AQUILES EL AQUEO</h3>
+                <p class="text-xs text-red-200/70 mb-3 italic">"El de los Pies Ligeros"</p>
+                <div class="text-xs text-left space-y-1 w-full bg-black/40 p-3 rounded border border-red-500/20">
+                    <p><span class="text-red-400 font-bold">Arma:</span> Espada Xiphos</p>
+                    <p><span class="text-red-400 font-bold">Estilo:</span> Velocidad Extrema, Combos Mortales</p>
+                    <p><span class="text-red-400 font-bold">Poder Divino:</span> Furia de Tetis (Corte Divino Acelerado)</p>
+                </div>
+            </div>
+        </div>
+
+        <button id="btn-start-fight" class="greek-btn px-8 py-3 text-xl font-bold rounded tracking-widest mb-6 opacity-50 cursor-not-allowed" disabled>
+            ¡IR A LA BATALLA!
+        </button>
+    </div>
+
+    <!-- IN-GAME HUD -->
+    <div id="hud" class="absolute top-0 left-0 w-full p-4 z-20 flex justify-between items-start pointer-events-none hidden">
+        <!-- PLAYER 1 HUD -->
+        <div class="w-[42%] max-w-md flex flex-col gap-1">
+            <div class="flex justify-between items-end">
+                <span id="p1-name" class="font-bold text-lg md:text-xl text-amber-300 tracking-wider drop-shadow-md">HÉCTOR</span>
+                <span id="p1-combo" class="text-amber-400 font-extrabold text-lg opacity-0 transition-opacity">0 HITS!</span>
+            </div>
+            <!-- HP Bar -->
+            <div class="bar-container h-6 rounded-sm w-full">
+                <div id="p1-hp" class="hp-bar-fill h-full w-full"></div>
+            </div>
+            <!-- Divine Gauge -->
+            <div class="flex items-center gap-2 mt-1">
+                <span class="text-[10px] text-cyan-300 font-bold tracking-widest">ICOR:</span>
+                <div class="bar-container h-2.5 rounded-sm flex-grow">
+                    <div id="p1-icor" class="icor-bar-fill h-full w-0"></div>
+                </div>
+            </div>
+            <!-- Rounds won markers -->
+            <div class="flex gap-1 mt-1" id="p1-rounds">
+                <div class="w-3 h-3 rounded-full border border-amber-400 bg-black/50"></div>
+                <div class="w-3 h-3 rounded-full border border-amber-400 bg-black/50"></div>
+            </div>
+        </div>
+
+        <!-- TIMER & ROUND INFO -->
+        <div class="flex flex-col items-center">
+            <div class="greek-border px-4 py-1 rounded text-2xl md:text-3xl font-black text-amber-300 shadow-xl">
+                <span id="game-timer">99</span>
+            </div>
+            <span id="round-indicator" class="text-xs text-amber-200 font-bold tracking-widest mt-1 uppercase">ROUND 1</span>
+        </div>
+
+        <!-- PLAYER 2 HUD -->
+        <div class="w-[42%] max-w-md flex flex-col gap-1 items-end text-right">
+            <div class="flex justify-between items-end w-full">
+                <span id="p2-combo" class="text-amber-400 font-extrabold text-lg opacity-0 transition-opacity">0 HITS!</span>
+                <span id="p2-name" class="font-bold text-lg md:text-xl text-red-400 tracking-wider drop-shadow-md">AQUILES</span>
+            </div>
+            <!-- HP Bar -->
+            <div class="bar-container h-6 rounded-sm w-full">
+                <div id="p2-hp" class="hp-bar-fill h-full w-full ml-auto"></div>
+            </div>
+            <!-- Divine Gauge -->
+            <div class="flex items-center gap-2 mt-1 w-full justify-end">
+                <div class="bar-container h-2.5 rounded-sm flex-grow">
+                    <div id="p2-icor" class="icor-bar-fill h-full w-0 ml-auto"></div>
+                </div>
+                <span class="text-[10px] text-cyan-300 font-bold tracking-widest">ICOR:</span>
+            </div>
+            <!-- Rounds won markers -->
+            <div class="flex gap-1 mt-1 justify-end" id="p2-rounds">
+                <div class="w-3 h-3 rounded-full border border-amber-400 bg-black/50"></div>
+                <div class="w-3 h-3 rounded-full border border-amber-400 bg-black/50"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ANNOUNCEMENT BANNER -->
+    <div id="announcer" class="absolute inset-0 pointer-events-none z-30 flex items-center justify-center hidden">
+        <h2 id="announcer-text" class="text-5xl md:text-7xl font-cinzel-dec text-amber-400 tracking-widest drop-shadow-[0_10px_10px_rgba(0,0,0,0.9)] text-center scale-75 transition-transform duration-300">
+            ¡FIGHT!
+        </h2>
+    </div>
+
+    <!-- GAME OVER / ROUND END OVERLAY -->
+    <div id="game-over-modal" class="absolute inset-0 z-50 hidden flex-col items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+        <div class="greek-border p-8 rounded-lg text-center max-w-lg w-full">
+            <h2 id="winner-title" class="text-3xl md:text-5xl font-cinzel-dec text-amber-400 mb-2">¡VICTORIA!</h2>
+            <p id="winner-subtitle" class="text-amber-200/80 mb-6 italic">Héctor ha defendido las murallas de Troya.</p>
+            <button id="btn-restart" class="greek-btn w-full py-3 text-lg font-bold rounded tracking-widest">
+                VOLVER A JUGAR
+            </button>
+        </div>
+    </div>
+
+    <!-- ON-SCREEN MOBILE CONTROLS (Only visible on small touch screens) -->
+    <div id="mobile-controls" class="absolute bottom-2 left-0 right-0 z-30 px-4 flex justify-between items-end pointer-events-auto md:hidden hidden">
+        <!-- D-PAD -->
+        <div class="grid grid-cols-3 gap-1 w-36 h-36">
+            <div></div>
+            <button id="btn-m-up" class="bg-amber-900/60 border border-amber-500 rounded flex items-center justify-center text-amber-200 text-xl font-bold"><i class="fa-solid fa-arrow-up"></i></button>
+            <div></div>
+            <button id="btn-m-left" class="bg-amber-900/60 border border-amber-500 rounded flex items-center justify-center text-amber-200 text-xl font-bold"><i class="fa-solid fa-arrow-left"></i></button>
+            <button id="btn-m-down" class="bg-amber-900/60 border border-amber-500 rounded flex items-center justify-center text-amber-200 text-xl font-bold"><i class="fa-solid fa-arrow-down"></i></button>
+            <button id="btn-m-right" class="bg-amber-900/60 border border-amber-500 rounded flex items-center justify-center text-amber-200 text-xl font-bold"><i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+        <!-- ACTION BUTTONS -->
+        <div class="grid grid-cols-2 gap-2 w-40">
+            <button id="btn-m-light" class="bg-amber-800/80 border border-amber-400 py-3 rounded text-amber-100 font-bold text-xs">LIGERO (J)</button>
+            <button id="btn-m-heavy" class="bg-amber-900/80 border border-amber-400 py-3 rounded text-amber-100 font-bold text-xs">PESADO (K)</button>
+            <button id="btn-m-dash" class="bg-blue-900/80 border border-cyan-400 py-2 rounded text-cyan-200 font-bold text-xs">DASH (U)</button>
+            <button id="btn-m-special" class="bg-red-900/80 border border-yellow-400 py-2 rounded text-amber-200 font-bold text-xs">ICOR (L)</button>
+        </div>
+    </div>
+
+    <!-- CONTROLS GUIDE BOTTOM BAR -->
+    <div class="absolute bottom-1 left-0 w-full text-center text-[10px] md:text-xs text-amber-200/50 z-20 pointer-events-none hidden md:block">
+        P1: [A/D] Mover | [W] Saltar | [S] Bloquear | [J] Ataque Ligero | [K] Ataque Pesado | [L] Icor Divine | [U] Dash
+    </div>
+
+    <script>
+        /* =========================================================================
+           SOUND SYNTHESIZER (WEB AUDIO API)
+           No external audio files required!
+           ========================================================================= */
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playClash(heavy = false) {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                
+                // Metallic noise buffer
+                const bufferSize = this.ctx.sampleRate * 0.15;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(heavy ? 2200 : 3500, now);
+                filter.Q.setValueAtTime(heavy ? 6 : 10, now);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(heavy ? 0.8 : 0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + (heavy ? 0.2 : 0.12));
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start(now);
+
+                // High metallic ping oscillator
+                const osc = this.ctx.createOscillator();
+                const oscGain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(heavy ? 1200 : 2400, now);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.15);
+
+                oscGain.gain.setValueAtTime(0.3, now);
+                oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+                osc.connect(oscGain);
+                oscGain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+
+            playHit() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
+
+                gain.gain.setValueAtTime(0.7, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.15);
+            }
+
+            playBlock() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.1);
+            }
+
+            playSpecial() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.4);
+
+                gain.gain.setValueAtTime(0.6, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.5);
+            }
+        }
+
+        const audio = new SoundFX();
+
+        /* =========================================================================
+           THREE.JS SCENE SETUP & ENVIRONMENT
+           ========================================================================= */
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x120804);
+        scene.fog = new THREE.FogExp2(0x2a140a, 0.025);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 3.5, 11);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffa266, 0.6);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xff7722, 1.8);
+        sunLight.position.set(-10, 12, 5);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 30;
+        sunLight.shadow.camera.left = -10;
+        sunLight.shadow.camera.right = 10;
+        sunLight.shadow.camera.top = 10;
+        sunLight.shadow.camera.bottom = -2;
+        scene.add(sunLight);
+
+        // Torch Point Lights
+        const torch1 = new THREE.PointLight(0xff5500, 2, 8);
+        torch1.position.set(-6, 3, -1);
+        scene.add(torch1);
+
+        const torch2 = new THREE.PointLight(0xff5500, 2, 8);
+        torch2.position.set(6, 3, -1);
+        scene.add(torch2);
+
+        // Arena Floor (Sandy Trojan Plains)
+        const floorGeo = new THREE.PlaneGeometry(40, 15);
+        const floorMat = new THREE.MeshStandardMaterial({ 
+            color: 0x5c3d28, 
+            roughness: 0.9,
+            metalness: 0.1
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Background: Walls of Troy & Scaean Gate
+        const wallGroup = new THREE.Group();
+
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.8 });
+        
+        // Massive Back Wall
+        const mainWall = new THREE.Mesh(new THREE.BoxGeometry(36, 10, 3), wallMat);
+        mainWall.position.set(0, 5, -5);
+        mainWall.castShadow = true;
+        mainWall.receiveShadow = true;
+        wallGroup.add(mainWall);
+
+        // Gate Pillars
+        const pillarGeo = new THREE.BoxGeometry(3, 12, 4);
+        const pillarLeft = new THREE.Mesh(pillarGeo, wallMat);
+        pillarLeft.position.set(-6, 6, -4.5);
+        pillarLeft.castShadow = true;
+        wallGroup.add(pillarLeft);
+
+        const pillarRight = new THREE.Mesh(pillarGeo, wallMat);
+        pillarRight.position.set(6, 6, -4.5);
+        pillarRight.castShadow = true;
+        wallGroup.add(pillarRight);
+
+        // Gate Arch
+        const arch = new THREE.Mesh(new THREE.BoxGeometry(15, 3, 3.5), wallMat);
+        arch.position.set(0, 10.5, -4.5);
+        wallGroup.add(arch);
+
+        // Trojan Horse Silhouette in background
+        const horseMat = new THREE.MeshBasicMaterial({ color: 0x0a0502 });
+        const horseBody = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 1), horseMat);
+        horseBody.position.set(-12, 3.5, -4);
+        const horseHead = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2, 0.8), horseMat);
+        horseHead.position.set(-10, 5, -4);
+        horseHead.rotation.z = -0.3;
+        wallGroup.add(horseBody, horseHead);
+
+        scene.add(wallGroup);
+
+        // Ambient Dust & Fire Particles System
+        const particleCount = 120;
+        const particleGeo = new THREE.BufferGeometry();
+        const particlePos = new Float32Array(particleCount * 3);
+
+        for(let i=0; i<particleCount*3; i+=3) {
+            particlePos[i] = (Math.random() - 0.5) * 30;
+            particlePos[i+1] = Math.random() * 8;
+            particlePos[i+2] = (Math.random() - 0.5) * 10;
+        }
+
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+        const particleMat = new THREE.PointsMaterial({
+            color: 0xffaa44,
+            size: 0.08,
+            transparent: true,
+            opacity: 0.6
+        });
+        const particles = new THREE.Points(particleGeo, particleMat);
+        scene.add(particles);
+
+        /* =========================================================================
+           CHARACTER MODEL BUILDER (Stylized 3D Mesh Assemblies)
+           ========================================================================= */
+        function createFighterMesh(isTrojan = true) {
+            const fighterGroup = new THREE.Group();
+
+            const armorMat = new THREE.MeshStandardMaterial({
+                color: isTrojan ? 0xd4af37 : 0xb87333, // Gold/Bronze vs Copper/Steel
+                metalness: 0.8,
+                roughness: 0.3
+            });
+
+            const tunicMat = new THREE.MeshStandardMaterial({
+                color: isTrojan ? 0x1a365d : 0x8b0000, // Trojan Blue vs Spartan Red
+                roughness: 0.7
+            });
+
+            const skinMat = new THREE.MeshStandardMaterial({
+                color: 0xd2a679,
+                roughness: 0.6
+            });
+
+            // Torso
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.35, 1.2, 8), armorMat);
+            torso.position.y = 1.4;
+            torso.castShadow = true;
+            fighterGroup.add(torso);
+
+            // Head & Helmet
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 12), skinMat);
+            head.position.y = 2.25;
+            fighterGroup.add(head);
+
+            const helmet = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.4, 8), armorMat);
+            helmet.position.set(0, 2.4, 0);
+            fighterGroup.add(helmet);
+
+            // Crest
+            const crestMat = new THREE.MeshBasicMaterial({ color: isTrojan ? 0xcc9900 : 0xcc0000 });
+            const crest = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.6), crestMat);
+            crest.position.set(0, 2.6, -0.05);
+            fighterGroup.add(crest);
+
+            // Legs
+            const legGeo = new THREE.CylinderGeometry(0.12, 0.1, 0.8, 8);
+            const leftLeg = new THREE.Mesh(legGeo, tunicMat);
+            leftLeg.position.set(-0.2, 0.5, 0);
+            leftLeg.castShadow = true;
+            fighterGroup.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(legGeo, tunicMat);
+            rightLeg.position.set(0.2, 0.5, 0);
+            rightLeg.castShadow = true;
+            fighterGroup.add(rightLeg);
+
+            // Arms & Weapon Group
+            const armGeo = new THREE.CylinderGeometry(0.1, 0.08, 0.7, 8);
+            
+            const leftArm = new THREE.Mesh(armGeo, skinMat);
+            leftArm.position.set(-0.5, 1.5, 0);
+            leftArm.rotation.z = 0.3;
+            fighterGroup.add(leftArm);
+
+            const rightArmGroup = new THREE.Group();
+            rightArmGroup.position.set(0.5, 1.6, 0);
+
+            const rightArm = new THREE.Mesh(armGeo, skinMat);
+            rightArm.position.y = -0.3;
+            rightArmGroup.add(rightArm);
+
+            // WEAPONS & SHIELD
+            if (isTrojan) {
+                // HECTOR: Trojan Shield & Long Spear
+                const shieldMat = new THREE.MeshStandardMaterial({ color: 0x8a6d1c, metalness: 0.7, roughness: 0.3 });
+                const shield = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.08, 16), shieldMat);
+                shield.rotation.x = Math.PI / 2;
+                shield.position.set(-0.4, 1.4, 0.3);
+                fighterGroup.add(shield);
+
+                const spearMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18 });
+                const spearShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.8, 8), spearMat);
+                spearShaft.rotation.x = Math.PI / 2;
+                spearShaft.position.set(0, -0.3, 0.5);
+
+                const tipMat = new THREE.MeshStandardMaterial({ color: 0xe6c200, metalness: 0.9 });
+                const spearTip = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.4, 8), tipMat);
+                spearTip.rotation.x = -Math.PI / 2;
+                spearTip.position.set(0, 0, 1.9);
+                spearShaft.add(spearTip);
+
+                rightArmGroup.add(spearShaft);
+            } else {
+                // ACHILLES: Xiphos Sword
+                const swordMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.9, roughness: 0.2 });
+                const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.2, 0.02), swordMat);
+                blade.position.set(0, -0.6, 0.3);
+                blade.rotation.x = Math.PI / 3;
+                rightArmGroup.add(blade);
+            }
+
+            fighterGroup.add(rightArmGroup);
+            fighterGroup.rightArmGroup = rightArmGroup;
+
+            return fighterGroup;
+        }
+
+        // Build Fighter Instances
+        const p1Mesh = createFighterMesh(true);  // Hector
+        const p2Mesh = createFighterMesh(false); // Achilles
+        scene.add(p1Mesh);
+        scene.add(p2Mesh);
+
+        /* =========================================================================
+           FIGHTING GAME ENGINE & LOGIC
+           ========================================================================= */
+        class Fighter {
+            constructor(mesh, isP1, name, isCPU = false) {
+                this.mesh = mesh;
+                this.isP1 = isP1;
+                this.name = name;
+                this.isCPU = isCPU;
+
+                // Transformed Position Logic
+                this.x = isP1 ? -3 : 3;
+                this.y = 0;
+                this.vx = 0;
+                this.vy = 0;
+
+                // Attributes & Stats
+                this.hp = 100;
+                this.icor = 0;
+                this.isGrounded = true;
+                this.isBlocking = false;
+                this.isAttacking = false;
+                this.isDashing = false;
+                this.facing = isP1 ? 1 : -1;
+
+                // State timers
+                this.attackTimer = 0;
+                this.attackType = null; // 'light', 'heavy', 'special'
+                this.hitStun = 0;
+                this.comboCount = 0;
+                this.comboResetTimer = null;
+
+                this.mesh.position.set(this.x, this.y, 0);
+                this.mesh.rotation.y = this.facing === 1 ? Math.PI / 2 : -Math.PI / 2;
+            }
+
+            reset(xPos) {
+                this.x = xPos;
+                this.y = 0;
+                this.vx = 0;
+                this.vy = 0;
+                this.hp = 100;
+                this.icor = 0;
+                this.isAttacking = false;
+                this.isBlocking = false;
+                this.hitStun = 0;
+                this.mesh.position.set(this.x, this.y, 0);
+            }
+
+            update(opponent) {
+                // Hitstun logic
+                if (this.hitStun > 0) {
+                    this.hitStun--;
+                    this.mesh.position.x = this.x + (Math.random() - 0.5) * 0.1; // Shake on hit
+                    return;
+                }
+
+                // Apply Gravity & Velocity
+                this.vy -= 0.018; // Gravity
+                this.y += this.vy;
+                if (this.y <= 0) {
+                    this.y = 0;
+                    this.vy = 0;
+                    this.isGrounded = true;
+                }
+
+                this.x += this.vx;
+                this.vx *= 0.8; // Friction
+
+                // Stage Boundaries (-7 to 7)
+                this.x = Math.max(-7.5, Math.min(7.5, this.x));
+
+                // Always face opponent unless attacking
+                if (!this.isAttacking) {
+                    this.facing = this.x < opponent.x ? 1 : -1;
+                    this.mesh.rotation.y = this.facing === 1 ? Math.PI / 2 : -Math.PI / 2;
+                }
+
+                // Sync 3D Mesh Position
+                this.mesh.position.x = this.x;
+                this.mesh.position.y = this.y;
+
+                // Basic Mesh Idle / Walk Animation
+                if (Math.abs(this.vx) > 0.02 && this.isGrounded) {
+                    this.mesh.position.y = this.y + Math.sin(Date.now() * 0.015) * 0.1;
+                }
+
+                // Attack frame tick
+                if (this.isAttacking) {
+                    this.attackTimer--;
+                    if (this.attackTimer <= 0) {
+                        this.isAttacking = false;
+                        this.mesh.rightArmGroup.rotation.z = 0;
+                    }
+                }
+            }
+
+            jump() {
+                if (this.isGrounded && this.hitStun <= 0) {
+                    this.vy = 0.38;
+                    this.isGrounded = false;
+                }
+            }
+
+            dash(dir) {
+                if (this.hitStun <= 0 && !this.isDashing) {
+                    this.vx = dir * 0.35;
+                    this.isDashing = true;
+                    setTimeout(() => this.isDashing = false, 250);
+                }
+            }
+
+            attack(type, opponent) {
+                if (this.isAttacking || this.hitStun > 0) return;
+
+                this.isAttacking = true;
+                this.attackType = type;
+
+                if (type === 'light') {
+                    this.attackTimer = 18;
+                    this.mesh.rightArmGroup.rotation.z = -Math.PI / 2 * this.facing;
+                    audio.playClash(false);
+                    this.checkHit(opponent, 1.8, 8, 'light');
+                } else if (type === 'heavy') {
+                    this.attackTimer = 28;
+                    this.mesh.rightArmGroup.rotation.z = -Math.PI * this.facing;
+                    audio.playClash(true);
+                    this.checkHit(opponent, 2.2, 16, 'heavy');
+                } else if (type === 'special' && this.icor >= 100) {
+                    this.icor = 0;
+                    this.attackTimer = 40;
+                    audio.playSpecial();
+                    triggerCameraZoom(this.mesh.position);
+                    this.checkHit(opponent, 3.2, 30, 'special');
+                    createHitParticles(opponent.mesh.position, 0x00ffff);
+                }
+            }
+
+            checkHit(opponent, range, damage, type) {
+                const dist = Math.abs(this.x - opponent.x);
+                if (dist <= range && Math.abs(this.y - opponent.y) < 1.2) {
+                    // Check if opponent blocked
+                    if (opponent.isBlocking && opponent.facing !== this.facing) {
+                        opponent.hp -= damage * 0.2; // Chip damage
+                        opponent.icor = Math.min(100, opponent.icor + 10);
+                        audio.playBlock();
+                        createHitParticles(opponent.mesh.position, 0xddaa33);
+                    } else {
+                        // Direct Hit!
+                        opponent.hp = Math.max(0, opponent.hp - damage);
+                        opponent.hitStun = type === 'heavy' ? 20 : 12;
+                        opponent.vx = this.facing * (type === 'heavy' ? 0.3 : 0.15);
+                        
+                        this.icor = Math.min(100, this.icor + 15);
+                        audio.playHit();
+
+                        // Screen Shake & Hit VFX
+                        triggerScreenShake();
+                        createHitParticles(opponent.mesh.position, 0xff2200);
+
+                        // Combo System
+                        this.registerCombo();
+                    }
+                }
+            }
+
+            registerCombo() {
+                this.comboCount++;
+                const comboEl = document.getElementById(this.isP1 ? 'p1-combo' : 'p2-combo');
+                comboEl.innerText = `${this.comboCount} HITS!`;
+                comboEl.style.opacity = '1';
+
+                clearTimeout(this.comboResetTimer);
+                this.comboResetTimer = setTimeout(() => {
+                    this.comboCount = 0;
+                    comboEl.style.opacity = '0';
+                }, 1200);
+            }
+        }
+
+        // Dynamic Hit Particle Visual Effects
+        const activeParticles = [];
+
+        function createHitParticles(pos, colorHex) {
+            const count = 15;
+            const pGeo = new THREE.BufferGeometry();
+            const pPos = new Float32Array(count * 3);
+            const pVel = [];
+
+            for (let i = 0; i < count; i++) {
+                pPos[i * 3] = pos.x;
+                pPos[i * 3 + 1] = pos.y + 1.2;
+                pPos[i * 3 + 2] = pos.z;
+
+                pVel.push({
+                    x: (Math.random() - 0.5) * 0.2,
+                    y: Math.random() * 0.2,
+                    z: (Math.random() - 0.5) * 0.2
+                });
+            }
+
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+            const pMat = new THREE.PointsMaterial({ color: colorHex, size: 0.15, transparent: true });
+            const pMesh = new THREE.Points(pGeo, pMat);
+
+            scene.add(pMesh);
+            activeParticles.push({ mesh: pMesh, vels: pVel, life: 20 });
+        }
+
+        function updateParticles() {
+            for (let i = activeParticles.length - 1; i >= 0; i--) {
+                const p = activeParticles[i];
+                p.life--;
+                const positions = p.mesh.geometry.attributes.position.array;
+
+                for (let j = 0; j < p.vels.length; j++) {
+                    positions[j * 3] += p.vels[j].x;
+                    positions[j * 3 + 1] += p.vels[j].y;
+                    positions[j * 3 + 2] += p.vels[j].z;
+                }
+
+                p.mesh.geometry.attributes.position.needsUpdate = true;
+                p.mesh.material.opacity = p.life / 20;
+
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    activeParticles.splice(i, 1);
+                }
+            }
+        }
+
+        // Camera Dynamics (Shake & Special Action Zoom)
+        function triggerScreenShake() {
+            document.body.classList.add('shake');
+            setTimeout(() => document.body.classList.remove('shake'), 250);
+        }
+
+        function triggerCameraZoom(targetPos) {
+            const origX = camera.position.x;
+            const origY = camera.position.y;
+            const origZ = camera.position.z;
+
+            camera.position.set(targetPos.x, targetPos.y + 1, 6);
+            setTimeout(() => {
+                camera.position.set(origX, origY, origZ);
+            }, 600);
+        }
+
+        /* =========================================================================
+           ARTIFICIAL INTELLIGENCE CONTROLLER (VS CPU MODO)
+           ========================================================================= */
+        class CPUController {
+            constructor(fighter, opponent, difficulty = 'normal') {
+                this.fighter = fighter;
+                this.opponent = opponent;
+                this.difficulty = difficulty; // 'easy', 'normal', 'legend'
+                this.reactionTimer = 0;
+            }
+
+            update() {
+                if (this.fighter.hitStun > 0 || gameState !== 'PLAYING') return;
+
+                const dist = Math.abs(this.fighter.x - this.opponent.x);
+                this.reactionTimer++;
+
+                const reactionInterval = this.difficulty === 'easy' ? 30 : (this.difficulty === 'normal' ? 15 : 6);
+
+                if (this.reactionTimer >= reactionInterval) {
+                    this.reactionTimer = 0;
+
+                    // CPU Movement Decisions
+                    if (dist > 2.2) {
+                        // Move closer
+                        this.fighter.vx = this.fighter.facing * (this.difficulty === 'legend' ? 0.12 : 0.08);
+                    } else {
+                        // Combat Range Actions
+                        const rand = Math.random();
+
+                        if (this.opponent.isAttacking && rand < (this.difficulty === 'legend' ? 0.8 : 0.4)) {
+                            // Block incoming attacks
+                            this.fighter.isBlocking = true;
+                        } else {
+                            this.fighter.isBlocking = false;
+
+                            if (this.fighter.icor >= 100 && rand < 0.7) {
+                                this.fighter.attack('special', this.opponent);
+                            } else if (rand < 0.5) {
+                                this.fighter.attack('light', this.opponent);
+                            } else if (rand < 0.85) {
+                                this.fighter.attack('heavy', this.opponent);
+                            } else if (rand < 0.95 && this.difficulty === 'legend') {
+                                this.fighter.jump();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /* =========================================================================
+           GAME MATCH MANAGER & STATE HANDLER
+           ========================================================================= */
+        let gameState = 'MENU'; // 'MENU', 'CHAR_SELECT', 'PLAYING', 'ROUND_END', 'GAME_OVER'
+        let gameMode = 'CPU';   // 'CPU' or 'P2'
+        let cpuDifficulty = 'normal';
+
+        let player1 = new Fighter(p1Mesh, true, 'HÉCTOR');
+        let player2 = new Fighter(p2Mesh, false, 'AQUILES', true);
+        let cpuBrain = new CPUController(player2, player1, cpuDifficulty);
+
+        let round = 1;
+        let p1RoundsWon = 0;
+        let p2RoundsWon = 0;
+        let matchTimer = 99;
+        let timerInterval = null;
+
+        // Input Keyboard Tracking
+        const keys = {};
+
+        window.addEventListener('keydown', (e) => {
+            audio.init(); // Initialize audio context on first user key press
+            keys[e.key.toLowerCase()] = true;
+
+            if (gameState !== 'PLAYING') return;
+
+            // Player 1 Control Inputs
+            if (e.key.toLowerCase() === 'w') player1.jump();
+            if (e.key.toLowerCase() === 'u') player1.dash(player1.facing);
+            if (e.key.toLowerCase() === 'j') player1.attack('light', player2);
+            if (e.key.toLowerCase() === 'k') player1.attack('heavy', player2);
+            if (e.key.toLowerCase() === 'l') player1.attack('special', player2);
+
+            // Player 2 Control Inputs (If 1v1 Local Mode)
+            if (gameMode === 'P2') {
+                if (e.key === 'ArrowUp') player2.jump();
+                if (e.key === '1') player2.attack('light', player1);
+                if (e.key === '2') player2.attack('heavy', player1);
+                if (e.key === '3') player2.attack('special', player1);
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        function handleContinuousInputs() {
+            if (gameState !== 'PLAYING') return;
+
+            // P1 Continuous movement & block
+            if (keys['a']) { player1.vx = -0.09; }
+            if (keys['d']) { player1.vx = 0.09; }
+            player1.isBlocking = keys['s'];
+
+            // P2 Continuous movement & block (1v1 mode)
+            if (gameMode === 'P2') {
+                if (keys['arrowleft']) { player2.vx = -0.09; }
+                if (keys['arrowright']) { player2.vx = 0.09; }
+                player2.isBlocking = keys['arrowdown'];
+            }
+        }
+
+        /* =========================================================================
+           UI & MENU FLOW CONTROLLERS
+           ========================================================================= */
+        const mainMenu = document.getElementById('main-menu');
+        const charSelect = document.getElementById('char-select');
+        const hud = document.getElementById('hud');
+        const announcer = document.getElementById('announcer');
+        const announcerText = document.getElementById('announcer-text');
+        const gameOverModal = document.getElementById('game-over-modal');
+
+        document.getElementById('btn-vs-cpu').onclick = () => {
+            audio.init();
+            gameMode = 'CPU';
+            mainMenu.classList.add('hidden');
+            charSelect.classList.remove('hidden');
+            charSelect.classList.add('flex');
+        };
+
+        document.getElementById('btn-vs-player').onclick = () => {
+            audio.init();
+            gameMode = 'P2';
+            mainMenu.classList.add('hidden');
+            charSelect.classList.remove('hidden');
+            charSelect.classList.add('flex');
+        };
+
+        // Difficulty Selector Handlers
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.replace('bg-amber-900/40', 'bg-amber-900/10'));
+                e.target.classList.replace('bg-amber-900/10', 'bg-amber-900/40');
+                cpuDifficulty = e.target.dataset.diff;
+            };
+        });
+
+        // Character Select Setup
+        let selectedChar = 'hector';
+        const cardHector = document.getElementById('card-hector');
+        const cardAchilles = document.getElementById('card-achilles');
+        const btnStart = document.getElementById('btn-start-fight');
+
+        cardHector.onclick = () => {
+            selectedChar = 'hector';
+            cardHector.classList.add('border-amber-400', 'bg-amber-950/40');
+            cardAchilles.classList.remove('border-amber-400', 'bg-amber-950/40');
+            btnStart.disabled = false;
+            btnStart.classList.remove('opacity-50', 'cursor-not-allowed');
+        };
+
+        cardAchilles.onclick = () => {
+            selectedChar = 'achilles';
+            cardAchilles.classList.add('border-amber-400', 'bg-amber-950/40');
+            cardHector.classList.remove('border-amber-400', 'bg-amber-950/40');
+            btnStart.disabled = false;
+            btnStart.classList.remove('opacity-50', 'cursor-not-allowed');
+        };
+
+        btnStart.onclick = () => {
+            charSelect.classList.add('hidden');
+            hud.classList.remove('hidden');
+            
+            // Show Mobile Controls on Touch Devices
+            if ('ontouchstart' in window) {
+                document.getElementById('mobile-controls').classList.remove('hidden');
+            }
+
+            // Assign Fighter Personas based on Selection
+            if (selectedChar === 'hector') {
+                player1 = new Fighter(p1Mesh, true, 'HÉCTOR DE TROYA');
+                player2 = new Fighter(p2Mesh, false, 'AQUILES EL AQUEO', gameMode === 'CPU');
+            } else {
+                player1 = new Fighter(p2Mesh, true, 'AQUILES EL AQUEO');
+                player2 = new Fighter(p1Mesh, false, 'HÉCTOR DE TROYA', gameMode === 'CPU');
+            }
+
+            document.getElementById('p1-name').innerText = player1.name;
+            document.getElementById('p2-name').innerText = player2.name;
+
+            cpuBrain = new CPUController(player2, player1, cpuDifficulty);
+
+            startMatch();
+        };
+
+        function startMatch() {
+            round = 1;
+            p1RoundsWon = 0;
+            p2RoundsWon = 0;
+            updateRoundMarkers();
+            startRound();
+        }
+
+        function startRound() {
+            gameState = 'ROUND_START';
+            matchTimer = 99;
+            document.getElementById('game-timer').innerText = matchTimer;
+            document.getElementById('round-indicator').innerText = `ROUND ${round}`;
+
+            player1.reset(-3);
+            player2.reset(3);
+
+            // Announcer Sequence
+            announcer.classList.remove('hidden');
+            announcerText.innerText = `ROUND ${round}`;
+            announcerText.style.transform = 'scale(1.2)';
+
+            setTimeout(() => {
+                announcerText.innerText = '¡FIGHT!';
+                announcerText.style.transform = 'scale(1)';
+                
+                setTimeout(() => {
+                    announcer.classList.add('hidden');
+                    gameState = 'PLAYING';
+                    
+                    clearInterval(timerInterval);
+                    timerInterval = setInterval(() => {
+                        if (gameState === 'PLAYING') {
+                            matchTimer--;
+                            document.getElementById('game-timer').innerText = matchTimer;
+                            if (matchTimer <= 0) checkRoundWinner(true);
+                        }
+                    }, 1000);
+                }, 800);
+            }, 1000);
+        }
+
+        function checkRoundWinner(timeOut = false) {
+            if (player1.hp <= 0 || player2.hp <= 0 || timeOut) {
+                gameState = 'ROUND_END';
+                clearInterval(timerInterval);
+
+                let winner = null;
+                if (player1.hp > player2.hp) {
+                    winner = player1;
+                    p1RoundsWon++;
+                } else if (player2.hp > player1.hp) {
+                    winner = player2;
+                    p2RoundsWon++;
+                }
+
+                updateRoundMarkers();
+
+                announcer.classList.remove('hidden');
+                announcerText.innerText = winner ? `¡GANA ${winner.name}!` : '¡EMPATE!';
+
+                setTimeout(() => {
+                    if (p1RoundsWon >= 2 || p2RoundsWon >= 2) {
+                        endGame(winner);
+                    } else {
+                        round++;
+                        startRound();
+                    }
+                }, 2000);
+            }
+        }
+
+        function updateRoundMarkers() {
+            const p1Rounds = document.getElementById('p1-rounds').children;
+            const p2Rounds = document.getElementById('p2-rounds').children;
+
+            for (let i = 0; i < 2; i++) {
+                p1Rounds[i].style.background = i < p1RoundsWon ? '#d4af37' : 'rgba(0,0,0,0.5)';
+                p2Rounds[i].style.background = i < p2RoundsWon ? '#d4af37' : 'rgba(0,0,0,0.5)';
+            }
+        }
+
+        function endGame(winner) {
+            gameState = 'GAME_OVER';
+            hud.classList.add('hidden');
+            announcer.classList.add('hidden');
+
+            gameOverModal.classList.remove('hidden');
+            gameOverModal.classList.add('flex');
+
+            document.getElementById('winner-title').innerText = `¡VICTORIA DE ${winner ? winner.name : 'NADIE'}!`;
+            document.getElementById('winner-subtitle').innerText = winner && winner.name.includes('HÉCTOR') 
+                ? 'Héctor ha protegido la gloriosa ciudad de Troya.' 
+                : 'Aquiles ha dejado su nombre grabado en la historia para siempre.';
+        }
+
+        document.getElementById('btn-restart').onclick = () => {
+            gameOverModal.classList.add('hidden');
+            mainMenu.classList.remove('hidden');
+            gameState = 'MENU';
+        };
+
+        // On-Screen Mobile Touch Event Bindings
+        document.getElementById('btn-m-left').ontouchstart = () => keys['a'] = true;
+        document.getElementById('btn-m-left').ontouchend = () => keys['a'] = false;
+        document.getElementById('btn-m-right').ontouchstart = () => keys['d'] = true;
+        document.getElementById('btn-m-right').ontouchend = () => keys['d'] = false;
+        document.getElementById('btn-m-up').ontouchstart = () => player1.jump();
+        document.getElementById('btn-m-down').ontouchstart = () => keys['s'] = true;
+        document.getElementById('btn-m-down').ontouchend = () => keys['s'] = false;
+        
+        document.getElementById('btn-m-light').ontouchstart = () => player1.attack('light', player2);
+        document.getElementById('btn-m-heavy').ontouchstart = () => player1.attack('heavy', player2);
+        document.getElementById('btn-m-dash').ontouchstart = () => player1.dash(player1.facing);
+        document.getElementById('btn-m-special').ontouchstart = () => player1.attack('special', player2);
+
+        /* =========================================================================
+           MAIN ANIMATION & RENDER LOOP
+           ========================================================================= */
+        function updateHUD() {
+            document.getElementById('p1-hp').style.width = `${Math.max(0, player1.hp)}%`;
+            document.getElementById('p2-hp').style.width = `${Math.max(0, player2.hp)}%`;
+
+            document.getElementById('p1-icor').style.width = `${player1.icor}%`;
+            document.getElementById('p2-icor').style.width = `${player2.icor}%`;
+
+            // Ready glow when meter is maxed
+            if (player1.icor >= 100) document.getElementById('p1-icor').classList.add('icor-ready');
+            else document.getElementById('p1-icor').classList.remove('icor-ready');
+
+            if (player2.icor >= 100) document.getElementById('p2-icor').classList.add('icor-ready');
+            else document.getElementById('p2-icor').classList.remove('icor-ready');
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (gameState === 'PLAYING') {
+                handleContinuousInputs();
+
+                player1.update(player2);
+                player2.update(player1);
+
+                if (gameMode === 'CPU') {
+                    cpuBrain.update();
+                }
+
+                checkRoundWinner();
+                updateHUD();
+            }
+
+            // Animate Torch Lights Flicker
+            torch1.intensity = 1.8 + Math.sin(Date.now() * 0.01) * 0.3;
+            torch2.intensity = 1.8 + Math.cos(Date.now() * 0.012) * 0.3;
+
+            // Particle Updates
+            updateParticles();
+
+            // Camera Tracking (Smooth follow midpoint between fighters)
+            if (gameState === 'PLAYING') {
+                const midX = (player1.x + player2.x) / 2;
+                const dist = Math.abs(player1.x - player2.x);
+                camera.position.x += (midX - camera.position.x) * 0.05;
+                camera.position.z += (Math.max(8, dist + 4) - camera.position.z) * 0.05;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle Window Resizing
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start Animation Pipeline
+        window.onload = () => {
+            animate();
+        };
+    </script>
+</body>
+</html>
